@@ -4,10 +4,12 @@ dist/
 dist-ssr/
 *.local
 
-# env — only .env.example is committed
+# env — 仅提交无密钥的公共环境文件；本地覆盖用 .env.local（已排除）
 .env
 .env.*
 !.env.example
+!.env.development
+!.env.production
 
 # IDE
 .idea/

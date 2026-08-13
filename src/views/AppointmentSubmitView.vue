@@ -1,5 +1,5 @@
 <script setup lang="ts"></script>
 
 <template>
-  <router-view />
+  <PagePlaceholder title="三步预约表单" />
 </template>

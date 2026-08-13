@@ -1,5 +1,5 @@
 <script setup lang="ts"></script>
 
 <template>
-  <router-view />
+  <PagePlaceholder title="修改密码" />
 </template>
