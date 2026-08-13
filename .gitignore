@@ -1,0 +1,22 @@
+# deps & build
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# env — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# logs & OS
+logs/
+*.log
+.DS_Store
+Thumbs.db
