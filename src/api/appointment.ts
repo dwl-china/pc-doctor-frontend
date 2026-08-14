@@ -7,6 +7,7 @@ export const apiAppointments = (params: {
   size: number
   status?: number
   user_id?: string
+  doctor_id?: string
   mine?: number
 }) => get<PageView<AppointmentView>>('/appointments', { params })
 

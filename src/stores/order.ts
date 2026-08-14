@@ -22,24 +22,28 @@ export const useOrderStore = defineStore('order', () => {
   const page = ref(1)
   const size = ref(PAGE_SIZE_DEFAULT)
   const statusFilter = ref<number | undefined>(undefined)
+  const mineFilter = ref(false)
   const loading = ref(false)
 
   async function fetchList(params?: {
     page?: number
     status?: number
     user_id?: string
+    doctor_id?: string
     mine?: number
   }) {
     loading.value = true
     try {
       page.value = params?.page ?? page.value
       statusFilter.value = params?.status
+      mineFilter.value = params?.mine === 1
       list.value = await apiAppointments({
         page: page.value,
         size: size.value,
         status: statusFilter.value,
         user_id: params?.user_id,
-        mine: params?.mine,
+        doctor_id: params?.doctor_id,
+        mine: mineFilter.value ? 1 : 0,
       })
     } finally {
       loading.value = false
@@ -83,6 +87,7 @@ export const useOrderStore = defineStore('order', () => {
     page,
     size,
     statusFilter,
+    mineFilter,
     loading,
     fetchList,
     submit,

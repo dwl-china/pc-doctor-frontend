@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { resolveFileUrl } from '@/utils/file'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -47,7 +48,7 @@ function handleCommand(command: string) {
         <template v-if="auth.isLoggedIn">
           <el-dropdown @command="handleCommand">
             <span class="user-chip">
-              <el-avatar :size="28" :src="auth.user?.userPicture || undefined">
+              <el-avatar :size="28" :src="resolveFileUrl(auth.user?.userPicture) || undefined">
                 {{ auth.user?.userName?.charAt(0) }}
               </el-avatar>
               <span class="user-name">{{ auth.user?.userName }}</span>
@@ -87,6 +88,10 @@ function handleCommand(command: string) {
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 60px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--el-border-color-light);
   background: var(--el-bg-color);
 
