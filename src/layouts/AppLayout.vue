@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDocStore } from '@/stores/doc'
 import { resolveFileUrl } from '@/utils/file'
 
 const router = useRouter()
 const auth = useAuthStore()
+const docStore = useDocStore()
+
+// 页脚展示交流群号；store 里有缓存守卫，不会每次导航都发请求
+onMounted(() => docStore.fetchQqGroup().catch(() => undefined))
 
 const navLinks = [
   { to: '/', label: '首页' },
@@ -75,7 +81,12 @@ function handleCommand(command: string) {
       <router-view />
     </el-main>
 
-    <el-footer class="app-footer"> 浙江工商大学电脑医院 · 校园电脑维修预约服务 </el-footer>
+    <el-footer class="app-footer">
+      <span>浙江工商大学电脑医院 · 校园电脑维修预约服务</span>
+      <span v-if="docStore.qqGroup" class="footer-qq">
+        交流群 <b>{{ docStore.qqGroup }}</b>
+      </span>
+    </el-footer>
   </el-container>
 </template>
 
@@ -153,8 +164,17 @@ function handleCommand(command: string) {
 }
 
 .app-footer {
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+
+  .footer-qq {
+    padding-left: 8px;
+    border-left: 1px solid var(--el-border-color);
+  }
 }
 </style>

@@ -39,6 +39,7 @@ export const UPLOAD_TYPES = {
   doc: 'doc',
   activity: 'activity',
   message: 'message',
+  notice: 'notice',
 } as const
 export type UploadType = (typeof UPLOAD_TYPES)[keyof typeof UPLOAD_TYPES]
 

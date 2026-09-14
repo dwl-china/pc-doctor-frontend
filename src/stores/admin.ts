@@ -20,6 +20,7 @@ export const useAdminStore = defineStore('admin', () => {
   async function fetchUsers(params: {
     page?: number
     size?: number
+    keyword?: string
     user_id?: string
     user_name?: string
     level?: number
@@ -27,6 +28,7 @@ export const useAdminStore = defineStore('admin', () => {
     users.value = await apiAdminUsers({
       page: params.page ?? 1,
       size: params.size ?? 10,
+      keyword: params.keyword,
       user_id: params.user_id,
       user_name: params.user_name,
       level: params.level,

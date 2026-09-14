@@ -1,19 +1,35 @@
 <script setup lang="ts">
 /**
- * 关于我们（阶段 7 · 8.8）：协会简介 + 活动展示（数据库驱动）+ 对外交流群（config 接口）。
- * 活动详情为 Markdown 文件，渲染同文档模块（DOMPurify 消毒）。
+ * 关于我们（阶段 7 · 8.8）：协会简介 + 活动展示（数据库驱动）+ 对外交流群。
+ *
+ * 需求 2：活动增删改入口放在本页（管理端路由仅管理员可进，电医进不来），电医+管理员可见。
+ * 需求 3：简介 / 交流群说明 / 二维码改为配置驱动（管理端「页面文字」维护，契约 §4.9）。
  */
-import { onMounted, ref } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadFile } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import { useDocStore } from '@/stores/doc'
+import { apiUpload } from '@/api/file'
 import { resolveFileUrl } from '@/utils/file'
+import { renderMarkdown, withQqGroup } from '@/utils/markdown'
+import { UPLOAD_TYPES } from '@/constants'
 import type { ActivityItem } from '@/types'
 
 const docStore = useDocStore()
+const auth = useAuthStore()
+
+/** 活动管理入口对电医与管理员开放（契约 §4.7「电医+」） */
+const canManage = computed(() => auth.isAdmin || auth.isDoctor)
 
 const activities = ref<ActivityItem[]>([])
 const loading = ref(false)
+
+const introTitle = computed(() => docStore.siteContent.aboutTitle || '关于我们')
+const introHtml = computed(() => renderMarkdown(docStore.siteContent.aboutBody))
+const qqNoticeHtml = computed(() =>
+  renderMarkdown(withQqGroup(docStore.siteContent.qqNotice, docStore.qqGroup)),
+)
 
 async function load() {
   loading.value = true
@@ -27,7 +43,7 @@ async function load() {
   }
 }
 
-/** 活动详情抽屉 */
+/* ---------- 活动详情抽屉 ---------- */
 const detailVisible = ref(false)
 const detailActivity = ref<ActivityItem | null>(null)
 const detailHtml = ref('')
@@ -39,9 +55,9 @@ async function openDetail(activity: ActivityItem) {
   detailLoading.value = true
   detailHtml.value = ''
   try {
-    const res = await fetch(activity.file)
+    const res = await fetch(resolveFileUrl(activity.file))
     if (!res.ok) throw new Error(`文件拉取失败（${res.status}）`)
-    detailHtml.value = DOMPurify.sanitize(marked.parse(await res.text()) as string)
+    detailHtml.value = renderMarkdown(await res.text())
   } catch {
     detailHtml.value =
       '<p style="color:var(--el-text-color-secondary)">详情加载失败，请稍后重试</p>'
@@ -50,30 +66,134 @@ async function openDetail(activity: ActivityItem) {
   }
 }
 
+/* ---------- 活动增删改（需求 2） ---------- */
+const editVisible = ref(false)
+const editSaving = ref(false)
+const uploadMd = ref(false)
+const uploadCover = ref(false)
+const editForm = reactive<{ id: number | null; title: string; summary: string; file: string; cover: string }>(
+  { id: null, title: '', summary: '', file: '', cover: '' },
+)
+
+const isEdit = computed(() => editForm.id !== null)
+
+function openCreate() {
+  editForm.id = null
+  editForm.title = ''
+  editForm.summary = ''
+  editForm.file = ''
+  editForm.cover = ''
+  editVisible.value = true
+}
+
+function openEdit(activity: ActivityItem) {
+  // title/summary/file 后端都是 @NotBlank，必须回填并原样回传，否则 2001
+  editForm.id = activity.id
+  editForm.title = activity.title
+  editForm.summary = activity.summary
+  editForm.file = activity.file
+  editForm.cover = activity.cover ?? ''
+  editVisible.value = true
+}
+
+/** 详情 Markdown 文件：上传成功即填入表单，保存时提交 */
+async function onMdChange(uploadFile: UploadFile) {
+  const raw = uploadFile.raw
+  if (!raw) return
+  uploadMd.value = true
+  try {
+    const res = await apiUpload(raw, UPLOAD_TYPES.activity)
+    editForm.file = res.url
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    uploadMd.value = false
+  }
+  return false
+}
+
+async function onCoverChange(uploadFile: UploadFile) {
+  const raw = uploadFile.raw
+  if (!raw) return
+  uploadCover.value = true
+  try {
+    const res = await apiUpload(raw, UPLOAD_TYPES.activity)
+    editForm.cover = res.url
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    uploadCover.value = false
+  }
+  return false
+}
+
+async function saveActivity() {
+  if (!editForm.title.trim() || !editForm.summary.trim()) {
+    ElMessage.warning('标题与简介不能为空')
+    return
+  }
+  if (!editForm.file) {
+    ElMessage.warning('请上传活动详情文件')
+    return
+  }
+  editSaving.value = true
+  try {
+    const payload = {
+      title: editForm.title.trim(),
+      summary: editForm.summary.trim(),
+      file: editForm.file,
+      cover: editForm.cover || undefined,
+    }
+    if (editForm.id === null) {
+      await docStore.createActivity(payload)
+      ElMessage.success('活动已发布')
+    } else {
+      await docStore.updateActivity(editForm.id, payload)
+      ElMessage.success('活动已更新')
+    }
+    editVisible.value = false
+    await load()
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    editSaving.value = false
+  }
+}
+
+async function removeActivity(activity: ActivityItem) {
+  try {
+    await ElMessageBox.confirm(`确认删除活动「${activity.title}」？详情文件与封面会一并清理。`, '删除活动', {
+      type: 'warning',
+    })
+    await docStore.deleteActivity(activity.id)
+    ElMessage.success('已删除')
+    await load()
+  } catch (e) {
+    if (e instanceof Error) return
+  }
+}
+
 onMounted(() => {
   load()
-  docStore.fetchQqGroup().catch(() => undefined) // 群号失败不阻塞页面
+  docStore.fetchSiteContent().catch(() => undefined)
+  docStore.fetchQqGroup().catch(() => undefined)
 })
 </script>
 
 <template>
   <div class="about-page">
-    <!-- 协会简介 -->
+    <!-- 协会简介（文案可在管理端「页面文字」修改） -->
     <section class="intro">
-      <h1 class="intro-title">关于我们</h1>
-      <p class="intro-text">
-        <b>X计算机协会</b
-        >成立于1995年，是一个面向全校、以营造校园科技文化氛围、推广计算机应用操作为宗旨的学术科技类社团。
-      </p>
-      <p class="intro-text">
-        <b>电脑医院</b
-        >隶属于浙江工商大学计算机协会，旨在为在校师生提供免费、专业、便捷的IT技术支援服务。
-      </p>
+      <h1 class="intro-title">{{ introTitle }}</h1>
+      <div class="intro-body markdown-body" v-html="introHtml" />
     </section>
 
     <!-- 活动展示 -->
     <section class="activities">
-      <h2 class="section-title">活动展示</h2>
+      <div class="section-head">
+        <h2 class="section-title">活动展示</h2>
+        <el-button v-if="canManage" type="primary" plain @click="openCreate">新建活动</el-button>
+      </div>
       <el-skeleton v-if="loading && activities.length === 0" :rows="4" animated />
       <div v-else-if="activities.length > 0" class="activity-grid">
         <el-card
@@ -97,18 +217,32 @@ onMounted(() => {
             <div class="activity-title">{{ activity.title }}</div>
             <div class="activity-summary">{{ activity.summary }}</div>
           </div>
+          <div v-if="canManage" class="activity-actions" @click.stop>
+            <el-button size="small" @click="openEdit(activity)">编辑</el-button>
+            <el-button size="small" type="danger" plain @click="removeActivity(activity)">
+              删除
+            </el-button>
+          </div>
         </el-card>
       </div>
       <el-empty v-else description="暂无活动" />
     </section>
 
-    <!-- 对外交流群 -->
-    <section v-if="docStore.qqGroup" class="qq-section">
+    <!-- 对外交流群：二维码仅在本页展示，页脚只放群号 -->
+    <section v-if="docStore.qqGroup || docStore.siteContent.qqQrcode" class="qq-section">
       <h2 class="section-title">对外交流群</h2>
       <el-card class="qq-card">
-        <div class="qq-text">
-          欢迎加入电脑医院交流群：<b>{{ docStore.qqGroup }}</b>
-        </div>
+        <!-- 说明文案没配时兜底显示群号，避免整块空白 -->
+        <div v-if="qqNoticeHtml" class="qq-text markdown-body" v-html="qqNoticeHtml" />
+        <div v-else class="qq-text">欢迎加入电脑医院交流群：<b>{{ docStore.qqGroup }}</b></div>
+        <el-image
+          v-if="docStore.siteContent.qqQrcode"
+          :src="resolveFileUrl(docStore.siteContent.qqQrcode)"
+          fit="contain"
+          class="qq-qrcode"
+          :preview-src-list="[resolveFileUrl(docStore.siteContent.qqQrcode)]"
+          preview-teleported
+        />
       </el-card>
     </section>
 
@@ -121,6 +255,66 @@ onMounted(() => {
     >
       <div v-loading="detailLoading" class="markdown-body" v-html="detailHtml" />
     </el-drawer>
+
+    <!-- 活动编辑弹窗（需求 2） -->
+    <el-dialog
+      v-model="editVisible"
+      :title="isEdit ? '编辑活动' : '新建活动'"
+      width="560px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="90px">
+        <el-form-item label="标题" required>
+          <el-input v-model="editForm.title" maxlength="255" show-word-limit />
+        </el-form-item>
+        <el-form-item label="简介" required>
+          <el-input v-model="editForm.summary" type="textarea" :rows="2" maxlength="255" show-word-limit />
+        </el-form-item>
+        <el-form-item label="详情文件" required>
+          <div class="upload-block">
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              accept=".md"
+              :disabled="uploadMd"
+              :on-change="onMdChange"
+            >
+              <el-button :loading="uploadMd" plain>
+                {{ uploadMd ? '上传中…' : '上传 Markdown 文件' }}
+              </el-button>
+            </el-upload>
+            <span v-if="editForm.file" class="upload-tip">已上传</span>
+            <span v-else class="upload-tip">未上传</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="封面">
+          <div class="upload-block">
+            <el-image
+              v-if="editForm.cover"
+              :src="resolveFileUrl(editForm.cover)"
+              fit="cover"
+              class="cover-preview"
+            />
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              accept="image/*"
+              :disabled="uploadCover"
+              :on-change="onCoverChange"
+            >
+              <el-button :loading="uploadCover" plain>
+                {{ uploadCover ? '上传中…' : '上传封面' }}
+              </el-button>
+            </el-upload>
+            <el-button v-if="editForm.cover" link @click="editForm.cover = ''">移除</el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editSaving" @click="saveActivity">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -140,12 +334,18 @@ onMounted(() => {
     color: var(--el-color-primary);
   }
 
-  .intro-text {
-    margin: 0 auto 12px;
+  .intro-body {
     max-width: 640px;
+    margin: 0 auto;
     line-height: 1.8;
     color: var(--el-text-color-regular);
   }
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .section-title {
@@ -195,6 +395,13 @@ onMounted(() => {
       overflow: hidden;
     }
   }
+
+  .activity-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 0 12px 12px;
+  }
 }
 
 .qq-section {
@@ -206,6 +413,30 @@ onMounted(() => {
 
   .qq-text {
     font-size: 15px;
+  }
+
+  .qq-qrcode {
+    width: 180px;
+    height: 180px;
+    margin-top: 12px;
+  }
+}
+
+.upload-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .upload-tip {
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .cover-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 6px;
+    border: 1px solid var(--el-border-color-lighter);
   }
 }
 </style>

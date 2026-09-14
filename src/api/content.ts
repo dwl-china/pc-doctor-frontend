@@ -1,5 +1,12 @@
 import { del, get, post, put } from './http'
-import type { ActivityItem, CategoryItem, DocumentItem, PageView } from '@/types'
+import type {
+  ActivityItem,
+  CategoryItem,
+  DocumentItem,
+  PageView,
+  SiteContent,
+  SiteContentUpdate,
+} from '@/types'
 
 /** 契约 §4.6-§4.9 */
 export const apiDocuments = (params: { page: number; size: number; title?: string }) =>
@@ -45,3 +52,9 @@ export const apiDeleteCategory = (id: number) => del<void>(`/categories/${id}`)
 export const apiQqGroup = () => get<{ value: string }>('/config/qq-group')
 
 export const apiUpdateQqGroup = (value: string) => put<void>('/config/qq-group', { value })
+
+/* 站点文案（关于我们 / 使用帮助 / 交流群）：读公开，写管理员（契约 §4.9） */
+export const apiSiteContent = () => get<SiteContent>('/config/site-content')
+
+export const apiUpdateSiteContent = (data: SiteContentUpdate) =>
+  put<SiteContent>('/config/site-content', data)

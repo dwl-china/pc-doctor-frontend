@@ -13,11 +13,20 @@ import {
   apiDocument,
   apiDocuments,
   apiQqGroup,
+  apiSiteContent,
   apiUpdateActivity,
   apiUpdateDocument,
   apiUpdateQqGroup,
+  apiUpdateSiteContent,
 } from '@/api/content'
-import type { ActivityItem, CategoryItem, DocumentItem, PageView } from '@/types'
+import type {
+  ActivityItem,
+  CategoryItem,
+  DocumentItem,
+  PageView,
+  SiteContent,
+  SiteContentUpdate,
+} from '@/types'
 
 /**
  * 文档 / 活动 / 分类 / 配置状态（公开浏览 + 管理端写）。
@@ -27,6 +36,13 @@ export const useDocStore = defineStore('doc', () => {
   const activities = ref<PageView<ActivityItem>>({ total: 0, records: [] })
   const categories = ref<CategoryItem[]>([])
   const qqGroup = ref('')
+  const siteContent = ref<SiteContent>({
+    aboutTitle: '',
+    aboutBody: '',
+    faqItems: [],
+    qqNotice: '',
+    qqQrcode: '',
+  })
 
   async function fetchDocuments(params: { page?: number; size?: number; title?: string }) {
     documents.value = await apiDocuments({
@@ -63,17 +79,32 @@ export const useDocStore = defineStore('doc', () => {
   const createCategory = (name: string) => apiCreateCategory(name)
   const deleteCategory = (id: number) => apiDeleteCategory(id)
 
+  /** 页脚/关于我们/帮助/意见反馈都要读群号，加缓存守卫避免每次进页面都发一次请求 */
   async function fetchQqGroup() {
+    if (qqGroup.value) return
     qqGroup.value = (await apiQqGroup()).value
   }
 
-  const updateQqGroup = (value: string) => apiUpdateQqGroup(value)
+  /** 更新后回写 store，否则管理端保存完、其他页面还显示旧群号 */
+  async function updateQqGroup(value: string) {
+    await apiUpdateQqGroup(value)
+    qqGroup.value = value
+  }
+
+  async function fetchSiteContent() {
+    siteContent.value = await apiSiteContent()
+  }
+
+  async function updateSiteContent(data: SiteContentUpdate) {
+    siteContent.value = await apiUpdateSiteContent(data)
+  }
 
   return {
     documents,
     activities,
     categories,
     qqGroup,
+    siteContent,
     fetchDocuments,
     documentDetail,
     createDocument,
@@ -89,5 +120,7 @@ export const useDocStore = defineStore('doc', () => {
     deleteCategory,
     fetchQqGroup,
     updateQqGroup,
+    fetchSiteContent,
+    updateSiteContent,
   }
 })
