@@ -116,6 +116,8 @@ export interface SiteContent {
   faqItems: FaqItem[]
   qqNotice: string
   qqQrcode: string
+  /** 页脚自定义 HTML（备案号等），渲染前经白名单消毒 */
+  footerHtml: string
 }
 
 /**
@@ -128,4 +130,5 @@ export interface SiteContentUpdate {
   faq_items?: FaqItem[]
   qq_notice?: string
   qq_qrcode?: string
+  footer_html?: string
 }

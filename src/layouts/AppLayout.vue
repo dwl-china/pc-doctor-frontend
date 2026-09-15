@@ -1,19 +1,27 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDocStore } from '@/stores/doc'
 import { resolveFileUrl } from '@/utils/file'
+import { sanitizeFooterHtml } from '@/utils/markdown'
 
 const router = useRouter()
 
 /** 站名只维护 .env 里的 VITE_APP_TITLE 一处 */
 const appTitle = import.meta.env.VITE_APP_TITLE
+
+/** 页脚自定义内容（备案号等）：管理端粘贴 HTML，这里消毒后渲染 */
+const footerHtml = computed(() => sanitizeFooterHtml(docStore.siteContent.footerHtml))
 const auth = useAuthStore()
 const docStore = useDocStore()
 
 // 页脚展示交流群号；store 里有缓存守卫，不会每次导航都发请求
-onMounted(() => docStore.fetchQqGroup().catch(() => undefined))
+// 页脚要展示群号与自定义内容（备案号），进站就取一次
+onMounted(() => {
+  docStore.fetchQqGroup().catch(() => undefined)
+  docStore.fetchSiteContent().catch(() => undefined)
+})
 
 const navLinks = [
   { to: '/', label: '首页' },
@@ -89,6 +97,12 @@ function handleCommand(command: string) {
       <span v-if="docStore.qqGroup" class="footer-qq">
         交流群 <b>{{ docStore.qqGroup }}</b>
       </span>
+      <!-- 管理端粘贴的页脚 HTML（备案号等），已按白名单消毒 -->
+      <span
+        v-if="footerHtml"
+        class="footer-custom"
+        v-html="footerHtml"
+      />
     </el-footer>
   </el-container>
 </template>
@@ -175,9 +189,21 @@ function handleCommand(command: string) {
   color: var(--el-text-color-secondary);
   font-size: 13px;
 
-  .footer-qq {
+  .footer-qq,
+  .footer-custom {
     padding-left: 8px;
     border-left: 1px solid var(--el-border-color);
+  }
+
+  /* 管理端粘贴的页脚 HTML（备案号等） */
+  .footer-custom :deep(a) {
+    color: var(--el-text-color-secondary);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--el-color-primary);
+      text-decoration: underline;
+    }
   }
 }
 </style>

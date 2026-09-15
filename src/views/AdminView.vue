@@ -271,6 +271,7 @@ const siteForm = reactive<SiteContentUpdate>({
   faq_items: [],
   qq_notice: '',
   qq_qrcode: '',
+  footer_html: '',
 })
 const siteLoading = ref(false)
 const siteSaving = ref(false)
@@ -286,6 +287,7 @@ async function loadSiteContent() {
     siteForm.faq_items = c.faqItems.map((i) => ({ ...i }))
     siteForm.qq_notice = c.qqNotice
     siteForm.qq_qrcode = c.qqQrcode
+    siteForm.footer_html = c.footerHtml
   } catch {
     /* 拦截器已提示 */
   } finally {
@@ -328,6 +330,7 @@ async function saveSiteContent() {
       qq_notice: siteForm.qq_notice ?? '',
       // 空串 = 清空二维码（并删除旧文件）
       qq_qrcode: siteForm.qq_qrcode ?? '',
+      footer_html: siteForm.footer_html ?? '',
     })
     ElMessage.success('页面文字已保存')
   } catch {
@@ -1072,6 +1075,26 @@ onMounted(() => {
               </div>
             </el-form-item>
           </el-form>
+
+          <h4 class="group-title">页脚</h4>
+          <el-form label-width="80px">
+            <el-form-item label="自定义内容">
+              <el-input
+                v-model="siteForm.footer_html"
+                type="textarea"
+                :rows="3"
+                maxlength="1000"
+                show-word-limit
+                placeholder='直接粘贴 HTML，例如备案号：&#10;<a href="https://beian.miit.gov.cn/" target="_blank">浙ICP备XXXXXXXX号</a>'
+              />
+            </el-form-item>
+          </el-form>
+          <el-alert
+            title="按钮、链接等常用标签正常显示；script、事件属性（onerror 等）会被自动过滤掉。填完保存即全站生效，不用重新发版。"
+            type="info"
+            :closable="false"
+            class="tip"
+          />
 
           <el-button type="primary" :loading="siteSaving" @click="saveSiteContent">
             保存页面文字
