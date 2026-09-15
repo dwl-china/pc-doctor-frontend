@@ -17,6 +17,9 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
+/** 站名只维护 .env 里的 VITE_APP_TITLE 一处（改备案名时不用翻代码） */
+const appTitle = import.meta.env.VITE_APP_TITLE
+
 const tab = ref<'login' | 'register'>('login')
 
 /** 登录 */
@@ -117,8 +120,8 @@ async function submitRegister() {
 <template>
   <div class="login-page">
     <el-card class="login-card">
-      <h2 class="title">浙江工商大学电脑医院</h2>
-      <p class="subtitle">校园电脑维修预约服务</p>
+      <h2 class="title">{{ appTitle }}</h2>
+      <p class="subtitle">电脑维修预约服务</p>
 
       <el-tabs v-model="tab" class="tabs" stretch>
         <el-tab-pane label="登录" name="login">

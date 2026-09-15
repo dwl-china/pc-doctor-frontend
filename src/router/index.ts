@@ -107,7 +107,7 @@ const router = createRouter({
 /** 全局守卫：登录态检查 + 角色拦截（#7.6） */
 router.beforeEach((to) => {
   const auth = useAuthStore(pinia)
-  document.title = `${String(to.meta.title ?? '')} - 浙江工商大学电脑医院`
+  document.title = `${String(to.meta.title ?? '')} - ${import.meta.env.VITE_APP_TITLE}`
 
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return { path: '/login', query: { redirect: to.fullPath } }

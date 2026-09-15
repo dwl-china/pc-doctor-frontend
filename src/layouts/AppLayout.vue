@@ -6,6 +6,9 @@ import { useDocStore } from '@/stores/doc'
 import { resolveFileUrl } from '@/utils/file'
 
 const router = useRouter()
+
+/** 站名只维护 .env 里的 VITE_APP_TITLE 一处 */
+const appTitle = import.meta.env.VITE_APP_TITLE
 const auth = useAuthStore()
 const docStore = useDocStore()
 
@@ -82,7 +85,7 @@ function handleCommand(command: string) {
     </el-main>
 
     <el-footer class="app-footer">
-      <span>浙江工商大学电脑医院 · 校园电脑维修预约服务</span>
+      <span>{{ appTitle }} · 电脑维修预约服务</span>
       <span v-if="docStore.qqGroup" class="footer-qq">
         交流群 <b>{{ docStore.qqGroup }}</b>
       </span>
