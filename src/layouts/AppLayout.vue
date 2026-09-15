@@ -11,8 +11,10 @@ const router = useRouter()
 /** 站名只维护 .env 里的 VITE_APP_TITLE 一处 */
 const appTitle = import.meta.env.VITE_APP_TITLE
 
-/** 页脚自定义内容（备案号等）：管理端粘贴 HTML，这里消毒后渲染 */
+/** 页脚自定义内容：管理端粘贴 HTML，这里消毒后渲染 */
 const footerHtml = computed(() => sanitizeFooterHtml(docStore.siteContent.footerHtml))
+/** 备案号：与页脚同样的消毒规则，只是渲染在页脚上方独立一行 */
+const icpHtml = computed(() => sanitizeFooterHtml(docStore.siteContent.icpHtml))
 const auth = useAuthStore()
 const docStore = useDocStore()
 
@@ -93,16 +95,24 @@ function handleCommand(command: string) {
     </el-main>
 
     <el-footer class="app-footer">
-      <span>{{ appTitle }} · 电脑维修预约服务</span>
-      <span v-if="docStore.qqGroup" class="footer-qq">
-        交流群 <b>{{ docStore.qqGroup }}</b>
-      </span>
-      <!-- 管理端粘贴的页脚 HTML（备案号等），已按白名单消毒 -->
-      <span
-        v-if="footerHtml"
-        class="footer-custom"
-        v-html="footerHtml"
+      <!-- 备案号独占一行、压在其它页脚信息之上（管理端粘贴，已按白名单消毒） -->
+      <div
+        v-if="icpHtml"
+        class="footer-icp"
+        v-html="icpHtml"
       />
+      <div class="footer-row">
+        <span>{{ appTitle }} · 电脑维修预约服务</span>
+        <span v-if="docStore.qqGroup" class="footer-qq">
+          交流群 <b>{{ docStore.qqGroup }}</b>
+        </span>
+        <!-- 管理端粘贴的页脚 HTML，已按白名单消毒 -->
+        <span
+          v-if="footerHtml"
+          class="footer-custom"
+          v-html="footerHtml"
+        />
+      </div>
     </el-footer>
   </el-container>
 </template>
@@ -181,13 +191,24 @@ function handleCommand(command: string) {
 }
 
 .app-footer {
+  /* 备案号一行 + 页脚信息一行，两行会顶破 el-footer 默认的 60px，故 height:auto */
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  height: auto;
+  min-height: 60px;
+  padding: 10px 16px;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+
+  .footer-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+  }
 
   .footer-qq,
   .footer-custom {
@@ -195,7 +216,8 @@ function handleCommand(command: string) {
     border-left: 1px solid var(--el-border-color);
   }
 
-  /* 管理端粘贴的页脚 HTML（备案号等） */
+  /* 管理端粘贴的 HTML（备案号 / 页脚），链接样式统一 */
+  .footer-icp :deep(a),
   .footer-custom :deep(a) {
     color: var(--el-text-color-secondary);
     text-decoration: none;

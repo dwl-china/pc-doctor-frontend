@@ -43,6 +43,7 @@ export const useDocStore = defineStore('doc', () => {
     qqNotice: '',
     qqQrcode: '',
     footerHtml: '',
+    icpHtml: '',
   })
 
   async function fetchDocuments(params: { page?: number; size?: number; title?: string }) {
