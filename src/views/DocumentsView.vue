@@ -238,14 +238,18 @@ onMounted(async () => {
       />
     </div>
 
-    <!-- 预览抽屉 -->
+    <!-- 预览：全屏阅读。正文另用 .preview-body 限宽居中 —— 满屏宽的行长反而难读 -->
     <el-drawer
       v-model="previewVisible"
       :title="previewDoc?.title ?? '文档预览'"
-      size="60%"
+      size="100%"
       destroy-on-close
     >
-      <div v-loading="previewLoading" class="markdown-body" v-html="previewHtml" />
+      <div
+        v-loading="previewLoading"
+        class="markdown-body preview-body"
+        v-html="previewHtml"
+      />
     </el-drawer>
 
     <!-- 新建 / 编辑对话框 -->
@@ -394,5 +398,25 @@ onMounted(async () => {
     border-left: 4px solid var(--el-color-primary-light-5);
     color: var(--el-text-color-secondary);
   }
+}
+
+/*
+ * 全屏预览时追加在 .markdown-body 上的类。
+ * 抽屉铺满整个视口了，但正文**不能跟着铺满** —— 一行 1500px 宽、
+ * 一行能排下上百个字，眼睛换行时找不到下一行的开头。
+ * 所以限宽居中，把行长控制在 60~70 个字（中文的舒适区间）。
+ * 这段必须放在 .markdown-body 之后：两者特异性相同，靠顺序覆盖它的 padding。
+ */
+.preview-body {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 24px 64px;
+  font-size: 15px;
+  line-height: 1.85;
+}
+
+/* 全屏后标题层级拉开一点，长文里更好定位 */
+.preview-body :is(h1, h2, h3) {
+  margin-top: 28px;
 }
 </style>
