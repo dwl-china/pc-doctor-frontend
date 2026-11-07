@@ -55,7 +55,7 @@ const router = createRouter({
           path: 'workbench',
           name: 'workbench',
           component: () => import('@/views/DoctorWorkbenchView.vue'),
-          meta: { requiresAuth: true, roles: [USER_LEVEL.DOCTOR], title: '电医工作台' },
+          meta: { requiresAuth: true, roles: [USER_LEVEL.DOCTOR, USER_LEVEL.ADMIN], title: '电医工作台' },
         },
         {
           path: 'documents',

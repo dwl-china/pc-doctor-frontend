@@ -2,7 +2,8 @@
 /**
  * 预约详情（阶段 7 · 8.4）。
  * - 状态步骤条 + 分角色提示 + 预约信息 + 接单电医 + 消息评论（恢复旧版被注释的 UI，#20）
- * - 操作权限与后端契约 §4.4 对齐：接单=电医(排队单)、完成=接单者本人、撤销=本人(未接单)、删除=管理员
+ * - 权限：接单=电医/管理员(待处理单)、撤销=本人(未被接单)、删除=管理员/接单者
+ * - 接单即完成：0→2，管理员也可接单
  * - 公开详情联系信息已由后端脱敏（#7）
  */
 import { computed, onMounted, ref } from 'vue'
@@ -45,27 +46,19 @@ async function load() {
   }
 }
 
-/** 接单 */
+/** 接单（电医/管理员）：接单即完成 */
 async function accept() {
   try {
-    await ElMessageBox.confirm('确认接单？接单后请及时处理。', '接单', { type: 'info' })
+    await ElMessageBox.confirm(
+      '确认接单？接单后该预约将直接标记为已处理。',
+      '接单',
+      { type: 'info' },
+    )
     await order.accept(id)
-    ElMessage.success('已成功接单')
+    ElMessage.success('已接单，预约已标记为已处理')
     await load()
   } catch (e) {
     /* 取消弹窗或业务错误（拦截器已提示） */
-    if (e instanceof Error) return
-  }
-}
-
-/** 完成 */
-async function complete() {
-  try {
-    await ElMessageBox.confirm('确认该预约已完成？', '完成预约', { type: 'info' })
-    await order.complete(id)
-    ElMessage.success('预约已完成')
-    await load()
-  } catch (e) {
     if (e instanceof Error) return
   }
 }
@@ -83,8 +76,8 @@ async function remove(verb: string) {
 }
 
 function statusStep(status: number) {
-  // el-steps active：排队中=0、处理中=1、已完成=2
-  return status
+  // 两步走：待处理=进行中，已处理=两个节点都完成
+  return status === APPOINTMENT_STATUS.DONE ? 2 : 0
 }
 
 /** 消息发送 */
@@ -179,7 +172,6 @@ onMounted(load)
           class="steps"
         >
           <el-step :title="APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.QUEUED]" />
-          <el-step :title="APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.PROCESSING]" />
           <el-step :title="APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.DONE]" />
         </el-steps>
 
@@ -208,8 +200,15 @@ onMounted(load)
           class="tip"
         />
         <el-alert
+          v-if="appointment.status === APPOINTMENT_STATUS.QUEUED && isAdmin"
+          title="管理员可直接接单，接单后预约标记为已处理"
+          type="info"
+          :closable="false"
+          class="tip"
+        />
+        <el-alert
           v-if="appointment.status === APPOINTMENT_STATUS.DONE"
-          title="该预约已完成！"
+          title="该预约已处理！"
           type="success"
           :closable="false"
           class="tip"
@@ -276,18 +275,11 @@ onMounted(load)
             举报
           </el-button>
           <el-button
-            v-if="appointment.status === APPOINTMENT_STATUS.QUEUED && isDoctor"
+            v-if="appointment.status === APPOINTMENT_STATUS.QUEUED && (isDoctor || isAdmin)"
             type="primary"
             @click="accept"
           >
             接单
-          </el-button>
-          <el-button
-            v-if="appointment.status === APPOINTMENT_STATUS.PROCESSING && isAcceptedDoctor"
-            type="success"
-            @click="complete"
-          >
-            预约完成
           </el-button>
           <el-button
             v-if="appointment.status === APPOINTMENT_STATUS.QUEUED && isOwner"

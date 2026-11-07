@@ -4,7 +4,6 @@ import {
   apiAcceptAppointment,
   apiAppointment,
   apiAppointments,
-  apiCompleteAppointment,
   apiDeleteAppointment,
   apiMessages,
   apiPostMessage,
@@ -15,7 +14,7 @@ import { PAGE_SIZE_DEFAULT } from '@/constants'
 import type { AppointmentSubmit, AppointmentView, MessageView, PageView } from '@/types'
 
 /**
- * 预约（order）状态：首页列表 / 详情 / 提交 / 接单 / 完成 / 留言。
+ * 预约（order）状态：首页列表 / 详情 / 提交 / 接单 / 留言。
  */
 export const useOrderStore = defineStore('order', () => {
   const list = ref<PageView<AppointmentView>>({ total: 0, records: [] })
@@ -70,10 +69,6 @@ export const useOrderStore = defineStore('order', () => {
     return apiAcceptAppointment(id)
   }
 
-  async function complete(id: number) {
-    return apiCompleteAppointment(id)
-  }
-
   async function messages(appointmentId: number): Promise<MessageView[]> {
     return apiMessages(appointmentId)
   }
@@ -95,7 +90,6 @@ export const useOrderStore = defineStore('order', () => {
     update,
     remove,
     accept,
-    complete,
     messages,
     postMessage,
   }

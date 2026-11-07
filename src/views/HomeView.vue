@@ -40,10 +40,6 @@ const ALL_STATUS = -1
 const statusTabs = [
   { label: '全部', value: ALL_STATUS },
   { label: APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.QUEUED], value: APPOINTMENT_STATUS.QUEUED },
-  {
-    label: APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.PROCESSING],
-    value: APPOINTMENT_STATUS.PROCESSING,
-  },
   { label: APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.DONE], value: APPOINTMENT_STATUS.DONE },
 ] as const
 
@@ -80,7 +76,6 @@ function statusTagType(status: number) {
     (
       {
         [APPOINTMENT_STATUS.QUEUED]: 'warning',
-        [APPOINTMENT_STATUS.PROCESSING]: 'primary',
         [APPOINTMENT_STATUS.DONE]: 'success',
       } as const
     )[status] ?? 'info'

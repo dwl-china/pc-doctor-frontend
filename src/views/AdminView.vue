@@ -213,11 +213,9 @@ const doctorOptions = ref<{ userId: string; userName: string }[]>([])
 const statusHint = computed(() => {
   switch (statusForm.status) {
     case APPOINTMENT_STATUS.QUEUED:
-      return '将清空接单电医、接单时间与完成时间，预约回到排队池。'
-    case APPOINTMENT_STATUS.PROCESSING:
-      return '将写入接单电医与接单时间，并清空完成时间。必须指定电医。'
+      return '将清空接单电医、接单时间与完成时间，预约回到待处理。'
     default:
-      return '将补写完成时间（已有则保留），接单信息不变。'
+      return '将补写完成时间（已有则保留）；可同时补登记接单电医。'
   }
 })
 
@@ -244,10 +242,6 @@ async function openStatus(row: AppointmentView) {
 
 async function submitStatus() {
   if (!statusTarget.value) return
-  if (statusForm.status === APPOINTMENT_STATUS.PROCESSING && !statusForm.doctorId) {
-    ElMessage.warning('改为「处理中」必须指定接单电医')
-    return
-  }
   statusSaving.value = true
   try {
     await apiAdminUpdateAppointmentStatus(statusTarget.value.id, {
@@ -473,26 +467,18 @@ function openBatchStatus() {
   ensureDoctorOptions()
 }
 
-/** status=2 不会自动补电医：把排队中的单直接标成已完成会得到工作台看不到的僵尸单 */
+/** 批量改状态：待处理会清空接单信息；已处理不自动补电医 */
 const batchStatusHint = computed(() => {
   const rows = selectedAppts.value
   switch (batchStatusForm.status) {
     case APPOINTMENT_STATUS.QUEUED:
-      return `${rows.length} 条预约将回到排队中，接单电医与两个时间戳一并清空。`
-    case APPOINTMENT_STATUS.PROCESSING:
-      return `${rows.length} 条预约将全部指派给所选电医（必选）。`
+      return `${rows.length} 条预约将回到待处理，接单电医与两个时间戳一并清空。`
     default:
-      return rows.some((r) => r.status === APPOINTMENT_STATUS.QUEUED)
-        ? `${rows.length} 条预约将标记为已完成；其中排队中的单不会自动补电医。`
-        : `${rows.length} 条预约将标记为已完成，并补写完成时间。`
+      return `${rows.length} 条预约将标记为已处理，并补写完成时间。`
   }
 })
 
 async function submitBatchStatus() {
-  if (batchStatusForm.status === APPOINTMENT_STATUS.PROCESSING && !batchStatusForm.doctorId) {
-    ElMessage.warning('改为「处理中」必须指定接单电医')
-    return
-  }
   const ids = selectedAppts.value.map((a) => a.id)
   if (!(await confirmBatch(`对选中的 ${ids.length} 条预约执行状态变更？`))) return
   batchBusy.value = true
@@ -807,7 +793,7 @@ onMounted(() => {
             show-overflow-tooltip
           />
           <el-table-column prop="acceptedCount" label="累计接单" width="110" sortable />
-          <el-table-column prop="completedCount" label="已完成" width="110" sortable />
+          <el-table-column prop="completedCount" label="已处理" width="110" sortable />
         </el-table>
 
         <div v-if="adminStore.doctors.total > PAGE_SIZE_DEFAULT" class="pagination">
@@ -831,9 +817,8 @@ onMounted(() => {
             clearable
             class="filter-select"
           >
-            <el-option :value="0" label="排队中" />
-            <el-option :value="1" label="处理中" />
-            <el-option :value="2" label="已完成" />
+            <el-option :value="0" label="待处理" />
+            <el-option :value="2" label="已处理" />
           </el-select>
           <el-input
             v-model="apptQuery.user_id"
@@ -885,13 +870,7 @@ onMounted(() => {
             <template #default="{ row }">
               <el-tag
                 size="small"
-                :type="
-                  row.status === APPOINTMENT_STATUS.QUEUED
-                    ? 'warning'
-                    : row.status === APPOINTMENT_STATUS.PROCESSING
-                      ? 'primary'
-                      : 'success'
-                "
+                :type="row.status === APPOINTMENT_STATUS.QUEUED ? 'warning' : 'success'"
               >
                 {{ APPOINTMENT_STATUS_LABEL[row.status] ?? row.status }}
               </el-tag>
@@ -1239,9 +1218,8 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="改为">
           <el-radio-group v-model="statusForm.status">
-            <el-radio-button :value="APPOINTMENT_STATUS.QUEUED">排队中</el-radio-button>
-            <el-radio-button :value="APPOINTMENT_STATUS.PROCESSING">处理中</el-radio-button>
-            <el-radio-button :value="APPOINTMENT_STATUS.DONE">已完成</el-radio-button>
+            <el-radio-button :value="APPOINTMENT_STATUS.QUEUED">待处理</el-radio-button>
+            <el-radio-button :value="APPOINTMENT_STATUS.DONE">已处理</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item
@@ -1281,9 +1259,8 @@ onMounted(() => {
       <el-form label-width="90px">
         <el-form-item label="改为">
           <el-radio-group v-model="batchStatusForm.status">
-            <el-radio-button :value="APPOINTMENT_STATUS.QUEUED">排队中</el-radio-button>
-            <el-radio-button :value="APPOINTMENT_STATUS.PROCESSING">处理中</el-radio-button>
-            <el-radio-button :value="APPOINTMENT_STATUS.DONE">已完成</el-radio-button>
+            <el-radio-button :value="APPOINTMENT_STATUS.QUEUED">待处理</el-radio-button>
+            <el-radio-button :value="APPOINTMENT_STATUS.DONE">已处理</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="batchStatusForm.status !== APPOINTMENT_STATUS.QUEUED" label="接单电医">

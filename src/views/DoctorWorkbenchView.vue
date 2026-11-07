@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /**
- * 电医工作台（阶段 7 · 8.6）：排队中（全部）/ 处理中（我的）/ 已完成（我的）三列表 + 接单/完成。
- * - 处理中与已完成用 doctor_id=本人 过滤（§4.4，2026-08-14 契约增补）
- * - 接单/完成走服务端状态机（CAS 防抢单），失败由拦截器提示
+ * 电医工作台：待处理（全部）/ 已处理（我的）两列表 + 接单。
+ * - 接单即完成：0→2，接单后该预约直接进入「已处理（我的）」
+ * - 已处理列表用 doctor_id=本人 过滤；管理员也可进入本页接单
  */
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiAcceptAppointment, apiAppointments, apiCompleteAppointment } from '@/api/appointment'
+import { apiAcceptAppointment, apiAppointments } from '@/api/appointment'
 import { useAuthStore } from '@/stores/auth'
 import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_LABEL, PAGE_SIZE_DEFAULT } from '@/constants'
 import type { AppointmentView, PageView } from '@/types'
@@ -16,7 +16,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const me = auth.user?.userId ?? ''
 
-type TabKey = 'queued' | 'processing' | 'done'
+type TabKey = 'queued' | 'done'
 
 const tabs: { key: TabKey; label: string; status: number; mineOnly: boolean }[] = [
   {
@@ -24,12 +24,6 @@ const tabs: { key: TabKey; label: string; status: number; mineOnly: boolean }[] 
     label: APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.QUEUED],
     status: APPOINTMENT_STATUS.QUEUED,
     mineOnly: false,
-  },
-  {
-    key: 'processing',
-    label: APPOINTMENT_STATUS_LABEL[APPOINTMENT_STATUS.PROCESSING],
-    status: APPOINTMENT_STATUS.PROCESSING,
-    mineOnly: true,
   },
   {
     key: 'done',
@@ -45,7 +39,6 @@ const state = reactive<
   Record<TabKey, { page: number; total: number; records: AppointmentView[]; loading: boolean }>
 >({
   queued: { page: 1, total: 0, records: [], loading: false },
-  processing: { page: 1, total: 0, records: [], loading: false },
   done: { page: 1, total: 0, records: [], loading: false },
 })
 
@@ -74,26 +67,17 @@ function changePage(key: TabKey, page: number) {
   loadTab(key)
 }
 
-/** 接单（排队单） */
+/** 接单（待处理单）：接单即完成，预约直接进入已处理 */
 async function accept(row: AppointmentView) {
   try {
-    await ElMessageBox.confirm('确认接单？接单后请及时处理。', '接单', { type: 'info' })
+    await ElMessageBox.confirm(
+      '确认接单？接单后该预约将直接标记为已处理。',
+      '接单',
+      { type: 'info' },
+    )
     await apiAcceptAppointment(row.id)
-    ElMessage.success('已成功接单')
+    ElMessage.success('已接单，预约已标记为已处理')
     await loadTab('queued')
-    await loadTab('processing')
-  } catch (e) {
-    if (e instanceof Error) return
-  }
-}
-
-/** 完成（仅自己接的单） */
-async function complete(row: AppointmentView) {
-  try {
-    await ElMessageBox.confirm('确认该预约已完成？', '完成预约', { type: 'info' })
-    await apiCompleteAppointment(row.id)
-    ElMessage.success('预约已完成')
-    await loadTab('processing')
     await loadTab('done')
   } catch (e) {
     if (e instanceof Error) return
@@ -112,6 +96,12 @@ onMounted(() => loadTab('queued'))
 <template>
   <div class="workbench-page">
     <h2 class="page-title">电医工作台</h2>
+    <el-alert
+      title="接单后该预约会直接标记为「已处理」，请确认已实际处理后再接单。"
+      type="info"
+      :closable="false"
+      class="tip"
+    />
 
     <el-tabs v-model="activeTab">
       <el-tab-pane v-for="tab in tabs" :key="tab.key" :label="tab.label" :name="tab.key">
@@ -137,6 +127,7 @@ onMounted(() => loadTab('queued'))
             </template>
           </el-table-column>
           <el-table-column prop="userName" label="预约人" width="120" />
+          <el-table-column prop="doctorName" label="接单电医" width="120" />
           <el-table-column
             prop="availableTime"
             label="期望时间"
@@ -153,14 +144,6 @@ onMounted(() => loadTab('queued'))
                 @click="accept(row)"
               >
                 接单
-              </el-button>
-              <el-button
-                v-if="tab.key === 'processing'"
-                type="success"
-                size="small"
-                @click="complete(row)"
-              >
-                完成
               </el-button>
               <el-button size="small" @click="router.push(`/appointments/${row.id}`)">
                 查看
@@ -188,6 +171,10 @@ onMounted(() => loadTab('queued'))
 .page-title {
   margin: 4px 0 16px;
   color: var(--el-color-primary);
+}
+
+.tip {
+  margin-bottom: 12px;
 }
 
 .pagination {

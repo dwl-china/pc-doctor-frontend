@@ -75,7 +75,7 @@ function handleCommand(command: string) {
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="/profile">个人中心</el-dropdown-item>
-                <el-dropdown-item v-if="auth.isDoctor" command="/workbench"
+                <el-dropdown-item v-if="auth.isDoctor || auth.isAdmin" command="/workbench"
                   >电医工作台</el-dropdown-item
                 >
                 <el-dropdown-item v-if="auth.isAdmin" command="/admin">管理端</el-dropdown-item>

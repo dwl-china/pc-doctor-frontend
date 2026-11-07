@@ -24,9 +24,6 @@ export const apiDeleteAppointment = (id: number) => del<void>(`/appointments/${i
 export const apiAcceptAppointment = (id: number) =>
   post<AppointmentView>(`/appointments/${id}/accept`)
 
-export const apiCompleteAppointment = (id: number) =>
-  post<AppointmentView>(`/appointments/${id}/complete`)
-
 export const apiMessages = (appointmentId: number) =>
   get<MessageView[]>(`/appointments/${appointmentId}/messages`)
 

@@ -14,16 +14,14 @@ export const USER_LEVEL = {
 } as const
 export type UserLevel = (typeof USER_LEVEL)[keyof typeof USER_LEVEL]
 
-/** 预约状态（appointment_table.status，契约 §4.4） */
+/** 预约状态（appointment_table.status，契约 §4.4；接单即完成，只有两态） */
 export const APPOINTMENT_STATUS = {
   QUEUED: 0,
-  PROCESSING: 1,
   DONE: 2,
 } as const
 export const APPOINTMENT_STATUS_LABEL: Record<number, string> = {
-  [APPOINTMENT_STATUS.QUEUED]: '排队中',
-  [APPOINTMENT_STATUS.PROCESSING]: '处理中',
-  [APPOINTMENT_STATUS.DONE]: '已完成',
+  [APPOINTMENT_STATUS.QUEUED]: '待处理',
+  [APPOINTMENT_STATUS.DONE]: '已处理',
 }
 
 /** 分页（契约 §1：size 默认 10、最大 100） */
